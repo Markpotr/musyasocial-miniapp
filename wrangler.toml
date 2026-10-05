@@ -1,0 +1,9 @@
+name = "musyasocial-miniapp"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "musyasocial"
+database_id = "4fe076c6-1b35-4880-8ef9-59cbd9a65089"
