@@ -89,7 +89,7 @@ async function telegramAuth(req,env){
     row={...row,telegram_username:String(tgu.username||'')};
   }
   const token=await createSession(row.id,env);
-  return json({ok:true,created,user:{name:row.name,username:row.username,telegramUsername:row.telegram_username||tgu.username||''},state:row.state},{headers:{'set-cookie':setSessionCookie(token)}});
+  return json({ok:true,created,user:{name:row.name,username:row.username,telegramUsername:row.telegram_username||tgu.username||''},state:row.state},200,{headers:{'set-cookie':setSessionCookie(token)}});
 }
 async function telegramSend(env,chatId,text,webAppUrl){
   if(!env.TELEGRAM_BOT_TOKEN)return;
@@ -120,12 +120,12 @@ export default {async fetch(req,env){
         const exists=await env.DB.prepare('SELECT id FROM users WHERE username=?').bind(u).first();if(exists)return json({error:'Этот username уже занят.'},409);
         const salt=hex(bytes(16)),ph=await hashPassword(p,salt),now=Date.now(),state=initialState(n,u,n.slice(0,1).toUpperCase());
         const result=await env.DB.prepare('INSERT INTO users(name,username,password_hash,password_salt,created_at,state) VALUES(?,?,?,?,?,?)').bind(n,u,ph,salt,now,state).run();
-        const token=await createSession(result.meta.last_row_id,env);return json({user:{name:n,username:u},state},{headers:{'set-cookie':setSessionCookie(token)}});
+        const token=await createSession(result.meta.last_row_id,env);return json({user:{name:n,username:u},state},200,{headers:{'set-cookie':setSessionCookie(token)}});
       }
       if(url.pathname==='/api/login'&&req.method==='POST'){
         const {username,password}=await body(req),u=normalizeUser(username);const row=await env.DB.prepare('SELECT * FROM users WHERE username=?').bind(u).first();if(!row)return json({error:'Неверный username или пароль.'},401);
         const ph=await hashPassword(String(password||''),row.password_salt);if(ph!==row.password_hash)return json({error:'Неверный username или пароль.'},401);
-        const token=await createSession(row.id,env);return json({user:{name:row.name,username:row.username},state:row.state},{headers:{'set-cookie':setSessionCookie(token)}});
+        const token=await createSession(row.id,env);return json({user:{name:row.name,username:row.username},state:row.state},200,{headers:{'set-cookie':setSessionCookie(token)}});
       }
       if(url.pathname==='/api/me'&&req.method==='GET'){const u=await currentUser(req,env);if(!u)return json({user:null});return json({user:{name:u.name,username:u.username,telegramUsername:u.telegram_username||''},state:u.state})}
       if(url.pathname==='/api/save'&&req.method==='POST'){
@@ -134,12 +134,12 @@ export default {async fetch(req,env){
       }
       if(url.pathname==='/api/logout'&&req.method==='POST'){
         const token=getCookie(req,COOKIE);if(token){const th=await sha256(token);await env.DB.prepare('DELETE FROM sessions WHERE token_hash=?').bind(th).run()}
-        return json({ok:true},{headers:{'set-cookie':clearCookie()}});
+        return json({ok:true},200,{headers:{'set-cookie':clearCookie()}});
       }
       if(url.pathname==='/api/delete-account'&&req.method==='POST'){
         const u=await currentUser(req,env);if(!u)return json({error:'Не авторизован.'},401);
         await env.DB.prepare('DELETE FROM users WHERE id=?').bind(u.id).run();
-        return json({ok:true},{headers:{'set-cookie':clearCookie()}});
+        return json({ok:true},200,{headers:{'set-cookie':clearCookie()}});
       }
       return json({error:'Not found'},404);
     }catch(e){return json({error:'Server error: '+e.message},500)}
